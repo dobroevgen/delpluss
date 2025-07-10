@@ -17,6 +17,13 @@
             padding: 15px;
             margin-bottom: 15px;
         }
+        .restaurant.working {
+            border-left: 5px solid #4CAF50;
+        }
+        .restaurant.closed {
+            border-left: 5px solid #f44336;
+            opacity: 0.7;
+        }
         button {
             background-color: #4CAF50;
             color: white;
@@ -25,45 +32,94 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .status.working {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status.closed {
+            background-color: #f44336;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <h1>Список ресторанов</h1>
 
     <div id="restaurants">
-        <!-- Рестораны будут загружены через JavaScript -->
         <p>Загрузка...</p>
     </div>
 
     <script>
-        // Здесь можно добавить код для загрузки ресторанов через API
-        document.addEventListener('DOMContentLoaded', function() {
-            // Пример данных (в реальности нужно получать с бэкенда)
-            const restaurants = [
-                { id: 1, name: "Пицца Мария", address: "ул. Главная, 10", phone: "+1234567890" },
-                { id: 2, name: "Бургер Кинг", address: "ул. Центральная, 5", phone: "+0987654321" }
-            ];
+        async function loadRestaurants() {
+            try {
+                const response = await fetch('http://localhost:8000/api/restaurants');
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки ресторанов');
+                }
+                const restaurants = await response.json();
+                renderRestaurants(restaurants);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('restaurants').innerHTML =
+                    '<p style="color: red;">Не удалось загрузить список ресторанов. Пожалуйста, попробуйте позже.</p>';
+            }
+        }
 
+        function renderRestaurants(restaurants) {
             const container = document.getElementById('restaurants');
             container.innerHTML = '';
 
+            if (restaurants.length === 0) {
+                container.innerHTML = '<p>Нет доступных ресторанов</p>';
+                return;
+            }
+
             restaurants.forEach(rest => {
                 const div = document.createElement('div');
-                div.className = 'restaurant';
+                div.className = `restaurant ${rest.is_working ? 'working' : 'closed'}`;
+
+                const statusText = rest.is_working ? 'Работает' : 'Закрыт';
+                const statusClass = rest.is_working ? 'working' : 'closed';
+
                 div.innerHTML = `
-                    <h3>${rest.name}</h3>
+                    <h3>${rest.name} <span class="status ${statusClass}">${statusText}</span></h3>
                     <p>Адрес: ${rest.address}</p>
                     <p>Телефон: ${rest.phone}</p>
-                    <button onclick="viewMenu(${rest.id})">Посмотреть меню</button>
+                    <button onclick="viewMenu(${rest.id})" ${!rest.is_working ? 'disabled' : ''}>
+                        Посмотреть меню
+                    </button>
                 `;
                 container.appendChild(div);
             });
-        });
-
-        function viewMenu(restaurantId) {
-            alert(`Меню ресторана ${restaurantId} будет здесь`);
-            // В реальном приложении можно открыть новую страницу или модальное окно
         }
+
+        async function viewMenu(restaurantId) {
+            try {
+                const response = await fetch(`http://localhost:8000/api/restaurants/${restaurantId}/menu`);
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки меню');
+                }
+                const menu = await response.json();
+                // Здесь можно открыть модальное окно или перейти на другую страницу
+                alert(`Меню ресторана ${restaurantId} загружено. Количество позиций: ${menu.menu.length}`);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось загрузить меню ресторана');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadRestaurants);
     </script>
 </body>
 </html>
