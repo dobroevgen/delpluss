@@ -27,6 +27,24 @@
             background-color: #f5f5f5;
             color: var(--dark-color);
             line-height: 1.6;
+            <nav class="bottom-nav">
+    <div class="nav-item" onclick="loadRestaurants()">
+        <i class="fas fa-home"></i>
+        <span>Главная</span>
+    </div>
+    <div class="nav-item" onclick="showSearch()">
+        <i class="fas fa-search"></i>
+        <span>Поиск</span>
+    </div>
+    <div class="nav-item" onclick="showCart()">
+        <i class="fas fa-shopping-cart"></i>
+        <span>Корзина</span>
+    </div>
+    <div class="nav-item" onclick="showProfile()">
+        <i class="fas fa-user"></i>
+        <span>Профиль</span>
+    </div>
+</nav>
         }
 
         .container {
@@ -386,17 +404,17 @@
             .restaurant-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .header-content {
                 flex-direction: column;
                 text-align: center;
                 gap: 20px;
             }
-            
+
             .menu-item {
                 flex-direction: column;
             }
-            
+
             .menu-item-image {
                 width: 100%;
                 height: 200px;
@@ -428,6 +446,374 @@
             transition: var(--transition);
             z-index: 1000;
         }
+        .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        color: var(--dark-color);
+        transition: var(--transition);
+    }
+
+    .nav-item i {
+        font-size: 1.2rem;
+        margin-bottom: 5px;
+    }
+
+    .nav-item span {
+        font-size: 0.8rem;
+    }
+
+    .nav-item:hover, .nav-item.active {
+        color: var(--primary-color);
+    }
+
+    /* Обновляем контейнер для учета нижнего меню */
+    .container {
+        padding-bottom: 70px;
+    }
+
+    /* Стили для страницы поиска */
+    .search-container {
+        padding: 20px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 15px;
+        border-radius: 30px;
+        border: 1px solid #ddd;
+        font-size: 1rem;
+        margin-bottom: 20px;
+        padding-left: 45px;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 15px center;
+        background-size: 20px;
+    }
+
+    /* Стили для корзины */
+    .cart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        box-shadow: var(--shadow);
+    }
+
+    .cart-item-details {
+        flex-grow: 1;
+    }
+
+    .cart-item-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .quantity-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .quantity-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+    }
+
+    .checkout-btn {
+        width: 100%;
+        padding: 15px;
+        margin-top: 20px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    // Обновляем state management
+    let currentView = 'restaurants';
+    let currentRestaurant = null;
+    let currentCategory = 'all';
+    let cartItems = [];
+    let currentUser = null;
+
+    // Загружаем данные пользователя при инициализации
+    async function loadUserData() {
+        try {
+            // В реальном приложении здесь будет ID текущего пользователя
+            const response = await fetch('http://localhost:8000/api/user/1');
+            if (response.ok) {
+                currentUser = await response.json();
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки данных пользователя:', error);
+        }
+    }
+
+    // Функция для отображения страницы поиска
+    async function showSearch() {
+        currentView = 'search';
+        backBtn.style.display = 'none';
+
+        contentEl.innerHTML = `
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Поиск ресторанов и блюд..."
+                       oninput="performSearch(this.value)">
+                <div id="search-results"></div>
+            </div>
+        `;
+    }
+
+    // Функция поиска
+    async function performSearch(query) {
+        if (query.length < 2) {
+            document.getElementById('search-results').innerHTML = '';
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/search?query=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Ошибка поиска');
+
+            const results = await response.json();
+            renderSearchResults(results);
+        } catch (error) {
+            console.error('Ошибка поиска:', error);
+        }
+    }
+
+    // Отображение результатов поиска
+    function renderSearchResults(results) {
+        const resultsEl = document.getElementById('search-results');
+        let html = '';
+
+        if (results.restaurants.length > 0) {
+            html += `<h3>Рестораны</h3>`;
+            results.restaurants.forEach(restaurant => {
+                html += `
+                    <div class="search-result-item" onclick="viewMenu(${restaurant.id})">
+                        <i class="fas fa-store"></i>
+                        <div>
+                            <h4>${restaurant.name}</h4>
+                            <p>${restaurant.address}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        if (results.items.length > 0) {
+            html += `<h3>Блюда</h3>`;
+            results.items.forEach(item => {
+                html += `
+                    <div class="search-result-item" onclick="viewMenuItem(${item.id}, ${item.restaurant_id})">
+                        <i class="fas fa-utensils"></i>
+                        <div>
+                            <h4>${item.name}</h4>
+                            <p>${item.price} ₽</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        if (results.restaurants.length === 0 && results.items.length === 0) {
+            html = `<p class="no-results">Ничего не найдено</p>`;
+        }
+
+        resultsEl.innerHTML = html;
+    }
+
+    // Функция для отображения корзины
+    async function showCart() {
+        currentView = 'cart';
+        backBtn.style.display = 'none';
+
+        let html = `
+            <div class="cart-container">
+                <h2><i class="fas fa-shopping-cart"></i> Ваша корзина</h2>
+                <div id="cart-items">
+        `;
+
+        if (cartItems.length === 0) {
+            html += `
+                <div class="empty-cart">
+                    <i class="fas fa-shopping-basket" style="font-size: 3rem; color: #ccc; margin: 20px 0;"></i>
+                    <p>Ваша корзина пуста</p>
+                </div>
+            `;
+        } else {
+            let total = 0;
+
+            cartItems.forEach(item => {
+                total += item.price * item.quantity;
+
+                html += `
+                    <div class="cart-item">
+                        <div class="cart-item-details">
+                            <h4>${item.name}</h4>
+                            <p>${item.price} ₽ за шт.</p>
+                        </div>
+                        <div class="cart-item-actions">
+                            <div class="quantity-control">
+                                <button class="quantity-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+                                <span>${item.quantity}</span>
+                                <button class="quantity-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                            </div>
+                            <button class="remove-btn" onclick="removeFromCart(${item.id})">
+                                <i class="fas fa-trash" style="color: #ff6b6b;"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div class="cart-total">
+                    <h3>Итого: ${total} ₽</h3>
+                    <button class="checkout-btn" onclick="checkout()">
+                        Оформить заказ
+                    </button>
+                </div>
+            `;
+        }
+
+        html += `</div></div>`;
+        contentEl.innerHTML = html;
+    }
+
+    // Функции работы с корзиной
+    function addToCart(itemId) {
+        // В реальном приложении здесь будет запрос к API для получения информации о товаре
+        const item = {
+            id: itemId,
+            name: `Товар ${itemId}`,
+            price: Math.floor(Math.random() * 500) + 100,
+            quantity: 1
+        };
+
+        const existingItem = cartItems.find(i => i.id === itemId);
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cartItems.push(item);
+        }
+
+        showNotification('Товар добавлен в корзину', 'success');
+    }
+
+    function updateQuantity(itemId, change) {
+        const item = cartItems.find(i => i.id === itemId);
+        if (item) {
+            item.quantity += change;
+
+            if (item.quantity <= 0) {
+                cartItems = cartItems.filter(i => i.id !== itemId);
+            }
+
+            showCart();
+        }
+    }
+
+    function removeFromCart(itemId) {
+        cartItems = cartItems.filter(i => i.id !== itemId);
+        showCart();
+    }
+
+    function checkout() {
+        if (cartItems.length === 0) return;
+
+        showNotification('Заказ оформлен!', 'success');
+        cartItems = [];
+        setTimeout(() => showCart(), 2000);
+    }
+
+    // Функция для отображения профиля
+    async function showProfile() {
+        currentView = 'profile';
+        backBtn.style.display = 'none';
+
+        if (!currentUser) {
+            await loadUserData();
+        }
+
+        let html = `
+            <div class="profile-container">
+                <div class="profile-header">
+                    <div class="avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <h2>${currentUser ? currentUser.name : 'Гость'}</h2>
+                    <p>${currentUser ? currentUser.phone : ''}</p>
+                </div>
+        `;
+
+        if (currentUser) {
+            try {
+                const response = await fetch(`http://localhost:8000/api/user/${currentUser.id}/orders`);
+                if (response.ok) {
+                    const orders = await response.json();
+
+                    html += `
+                        <div class="orders-section">
+                            <h3><i class="fas fa-history"></i> История заказов</h3>
+                    `;
+
+                    if (orders.length > 0) {
+                        orders.forEach(order => {
+                            html += `
+                                <div class="order-item">
+                                    <div class="order-header">
+                                        <span class="order-id">Заказ #${order.id}</span>
+                                        <span class="order-status ${order.status}">${order.status}</span>
+                                    </div>
+                                    <div class="order-details">
+                                        <p>${new Date(order.date).toLocaleDateString()}</p>
+                                        <p>${order.total} ₽</p>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += `<p class="no-orders">У вас еще нет заказов</p>`;
+                    }
+
+                    html += `</div>`;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки заказов:', error);
+            }
+        } else {
+            html += `
+                <div class="auth-required">
+                    <p>Для просмотра профиля необходимо авторизоваться</p>
+                    <button class="btn btn-primary">Войти</button>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+        contentEl.innerHTML = html;
+    }
+
+    // Инициализация при загрузке
+    document.addEventListener('DOMContentLoaded', () => {
+        loadRestaurants();
+        setupEventListeners();
+        loadUserData();
+    });
+</script>
 
         .notification.show {
             transform: translateY(0);
@@ -440,7 +826,7 @@
         <div class="container header-content">
             <div>
                 <h1>FoodDelivery</h1>
-                <p class="subtitle">Лучшие рестораны города</p>
+                <p class="subtitle">Лучшие рестораны Октябрьского</p>
             </div>
             <button id="back-btn" class="back-btn" style="display: none;">
                 <i class="fas fa-arrow-left"></i> Назад
@@ -487,7 +873,7 @@
         async function loadRestaurants() {
             currentView = 'restaurants';
             backBtn.style.display = 'none';
-            
+
             contentEl.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
@@ -495,9 +881,9 @@
             `;
 
             try {
-                const response = await fetch('/api/restaurants');
+                const response = await fetch('http://localhost:8000/api/restaurants');
                 if (!response.ok) throw new Error('Ошибка загрузки ресторанов');
-                
+
                 const restaurants = await response.json();
                 renderRestaurants(restaurants);
             } catch (error) {
@@ -535,7 +921,7 @@
             restaurants.forEach(restaurant => {
                 const isOpen = restaurant.is_working;
                 const imageUrl = `https://source.unsplash.com/random/600x400/?restaurant,${restaurant.id}`;
-                
+
                 html += `
                     <div class="restaurant-card fade-in">
                         <div class="restaurant-image" style="background-image: url('${imageUrl}')">
@@ -569,7 +955,7 @@
         async function viewMenu(restaurantId) {
             currentView = 'menu';
             backBtn.style.display = 'flex';
-            
+
             contentEl.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
@@ -578,8 +964,8 @@
 
             try {
                 const [restaurantResponse, menuResponse] = await Promise.all([
-                    fetch(`/api/restaurants/${restaurantId}`),
-                    fetch(`/api/restaurants/${restaurantId}/menu`)
+                    fetch(`http://localhost:8000/api/restaurants/${restaurantId}`),
+                    fetch(`http://localhost:8000/api/restaurants/${restaurantId}/menu`)
                 ]);
 
                 if (!restaurantResponse.ok || !menuResponse.ok) {
@@ -588,7 +974,7 @@
 
                 const restaurant = await restaurantResponse.json();
                 const menuData = await menuResponse.json();
-                
+
                 currentRestaurant = restaurant;
                 renderMenu(restaurant, menuData.menu);
             } catch (error) {
@@ -609,11 +995,11 @@
             });
 
             const categoryList = Object.keys(categories);
-            
+
             let html = `
                 <div class="menu-container">
                     <div class="menu-header fade-in">
-                        <img src="https://source.unsplash.com/random/200x200/?restaurant,logo,${restaurant.id}" 
+                        <img src="https://source.unsplash.com/random/200x200/?restaurant,logo,${restaurant.id}"
                              alt="${restaurant.name}" class="restaurant-logo">
                         <div>
                             <h2>${restaurant.name}</h2>
@@ -628,7 +1014,7 @@
                     <div class="menu-categories fade-in">
                         <h3><i class="fas fa-list"></i> Категории</h3>
                         <div class="category-tabs">
-                            <div class="category-tab ${currentCategory === 'all' ? 'active' : ''}" 
+                            <div class="category-tab ${currentCategory === 'all' ? 'active' : ''}"
                                  onclick="filterMenuByCategory('all')">
                                 Все
                             </div>
@@ -636,7 +1022,7 @@
 
                 categoryList.forEach(category => {
                     html += `
-                        <div class="category-tab ${currentCategory === category ? 'active' : ''}" 
+                        <div class="category-tab ${currentCategory === category ? 'active' : ''}"
                              onclick="filterMenuByCategory('${category}')">
                             ${category}
                         </div>
@@ -648,8 +1034,8 @@
 
             html += `<div class="menu-items" id="menu-items-container">`;
 
-            const itemsToShow = currentCategory === 'all' 
-                ? menuItems 
+            const itemsToShow = currentCategory === 'all'
+                ? menuItems
                 : menuItems.filter(item => item.category === currentCategory);
 
             if (itemsToShow.length === 0) {
@@ -662,7 +1048,7 @@
             } else {
                 itemsToShow.forEach(item => {
                     const imageUrl = `https://source.unsplash.com/random/300x300/?food,${item.id}`;
-                    
+
                     html += `
                         <div class="menu-item fade-in">
                             <img src="${imageUrl}" alt="${item.name}" class="menu-item-image">
@@ -704,7 +1090,7 @@
         function showNotification(message, type = 'info') {
             notificationEl.textContent = message;
             notificationEl.className = 'notification';
-            
+
             // Add type class
             if (type === 'error') {
                 notificationEl.style.backgroundColor = '#ff4757';
@@ -713,9 +1099,9 @@
             } else if (type === 'info') {
                 notificationEl.style.backgroundColor = 'var(--secondary-color)';
             }
-            
+
             notificationEl.classList.add('show');
-            
+
             setTimeout(() => {
                 notificationEl.classList.remove('show');
             }, 3000);
