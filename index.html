@@ -578,8 +578,8 @@
 
             try {
                 const [restaurantResponse, menuResponse] = await Promise.all([
-                    fetch(`http://localhost:8000/api/restaurants/${restaurantId}`),
-                    fetch(`http://localhost:8000/api/restaurants/${restaurantId}/menu`)
+                    fetch(`/api/restaurants/${restaurantId}`),
+                    fetch(`/api/restaurants/${restaurantId}/menu`)
                 ]);
 
                 if (!restaurantResponse.ok || !menuResponse.ok) {
