@@ -405,16 +405,30 @@ function translateStatus(status) {
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', initTelegramWebApp);
     // Функции для работы с профилем
-    async function loadUserData() {
-        try {
-            const response = await fetch('http://localhost:8000/api/user/1');
-            if (response.ok) {
-                currentUser = await response.json();
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки данных пользователя:', error);
+  async function loadUserData() {
+    try {
+        const response = await fetch('http://localhost:8000/api/user/1');
+        if (response.ok) {
+            currentUser = await response.json();
+        } else {
+            // Create default user object if not found
+            currentUser = {
+                id: 1,
+                name: "Гость",
+                phone: "",
+                address: ""
+            };
         }
+    } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error);
+        currentUser = {
+            id: 1,
+            name: "Гость",
+            phone: "",
+            address: ""
+        };
     }
+}
 
     async function showProfile() {
         currentView = 'profile';
