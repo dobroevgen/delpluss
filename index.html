@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рестораны - Доставка еды</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .restaurant {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Список ресторанов</h1>
+
+    <div id="restaurants">
+        <!-- Рестораны будут загружены через JavaScript -->
+        <p>Загрузка...</p>
+    </div>
+
+    <script>
+        // Здесь можно добавить код для загрузки ресторанов через API
+        document.addEventListener('DOMContentLoaded', function() {
+            // Пример данных (в реальности нужно получать с бэкенда)
+            const restaurants = [
+                { id: 1, name: "Пицца Мария", address: "ул. Главная, 10", phone: "+1234567890" },
+                { id: 2, name: "Бургер Кинг", address: "ул. Центральная, 5", phone: "+0987654321" }
+            ];
+
+            const container = document.getElementById('restaurants');
+            container.innerHTML = '';
+
+            restaurants.forEach(rest => {
+                const div = document.createElement('div');
+                div.className = 'restaurant';
+                div.innerHTML = `
+                    <h3>${rest.name}</h3>
+                    <p>Адрес: ${rest.address}</p>
+                    <p>Телефон: ${rest.phone}</p>
+                    <button onclick="viewMenu(${rest.id})">Посмотреть меню</button>
+                `;
+                container.appendChild(div);
+            });
+        });
+
+        function viewMenu(restaurantId) {
+            alert(`Меню ресторана ${restaurantId} будет здесь`);
+            // В реальном приложении можно открыть новую страницу или модальное окно
+        }
+    </script>
+</body>
+</html>
