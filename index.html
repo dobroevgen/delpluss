@@ -29,7 +29,63 @@
         color: var(--dark-color);
         line-height: 1.6;
     }
+.cart-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
 
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.item-actions button {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.remove-btn {
+    background: var(--primary-color) !important;
+}
+
+.cart-total {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid var(--accent-color);
+    text-align: right;
+}
+
+.checkout-btn {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.checkout-btn:hover {
+    background: #e68a00;
+}
     .container {
         max-width: 1200px;
         margin: 0 auto;
@@ -71,7 +127,7 @@
     <header id="main-header">
         <div class="container header-content">
             <div>
-                <h1>FoodDelivery</h1>
+                <h1>Курьер-Плюс</h1>
                 <p class="subtitle">Лучшие рестораны Октябрьского</p>
             </div>
             <button id="back-btn" class="back-btn" style="display: none;">
@@ -197,7 +253,157 @@
         cartItems = [];
         setTimeout(() => showCart(), 2000);
     }
+    //полноценную работу с корзиной
+    // Дополнения к index.html
+async function showCart() {
+    currentView = 'cart';
+    backBtn.style.display = 'block';
 
+    try {
+        const response = await fetch(`http://localhost:8000/api/cart/${currentUser.id}`);
+        if (!response.ok) throw new Error('Ошибка загрузки корзины');
+
+        const cart = await response.json();
+
+        let html = `
+            <div class="cart-container">
+                <h2>Ваша корзина</h2>
+                ${cart.items.length === 0 ?
+                    '<p class="empty-cart">Корзина пуста</p>' :
+                    cart.items.map(item => `
+                        <div class="cart-item">
+                            <div class="item-info">
+                                <h3>${item.name}</h3>
+                                <p>${item.price} ₽ × ${item.quantity}</p>
+                            </div>
+                            <div class="item-actions">
+                                <button onclick="updateQuantity(${item.id}, -1)">-</button>
+                                <span>${item.quantity}</span>
+                                <button onclick="updateQuantity(${item.id}, 1)">+</button>
+                                <button class="remove-btn" onclick="removeFromCart(${item.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')
+                }
+                ${cart.items.length > 0 ? `
+                    <div class="cart-total">
+                        <h3>Итого: ${cart.total} ₽</h3>
+                        <button class="checkout-btn" onclick="checkout()">
+                            Оформить заказ
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        contentEl.innerHTML = html;
+    } catch (error) {
+        console.error('Ошибка:', error);
+        contentEl.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h2>Не удалось загрузить корзину</h2>
+                <button onclick="showCart()">Попробовать снова</button>
+            </div>
+        `;
+    }
+}
+
+async function checkout() {
+    try {
+        const response = await fetch('http://localhost:8000/api/orders/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                restaurant_id: currentRestaurant.id,
+                items: cartItems,
+                total: calculateTotal(),
+                address: currentUser.address
+            })
+        });
+
+        if (!response.ok) throw new Error('Ошибка оформления заказа');
+
+        const result = await response.json();
+        showNotification('Заказ успешно оформлен!', 'success');
+
+        // Подключаемся к WebSocket для обновлений
+        setupOrderUpdates(result.order_id);
+
+        // Очищаем корзину
+        cartItems = [];
+        showCart();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showNotification('Ошибка оформления заказа', 'error');
+    }
+}
+
+function setupOrderUpdates(orderId) {
+    const ws = new WebSocket(`ws://localhost:8000/ws/order/${orderId}`);
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        showNotification(`Статус заказа: ${translateStatus(data.status)}`, 'info');
+
+        if (data.status === 'delivered') {
+            ws.close();
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+}
+
+function translateStatus(status) {
+    const statuses = {
+        'pending': 'Ожидает подтверждения',
+        'accepted': 'Принят',
+        'cooking': 'Готовится',
+        'ready': 'Готов к выдаче',
+        'delivered': 'Доставлен',
+        'cancelled': 'Отменен'
+    };
+    return statuses[status] || status;
+}
+    //WebbApp
+    function initTelegramWebApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        const webApp = Telegram.WebApp;
+
+        // Показываем кнопку назад в Telegram
+        webApp.BackButton.onClick(() => {
+            if (currentView === 'menu') {
+                loadRestaurants();
+            } else if (currentView === 'cart') {
+                loadRestaurants();
+            }
+        });
+
+        // Получаем данные пользователя из Telegram
+        if (webApp.initDataUnsafe && webApp.initDataUnsafe.user) {
+            const tgUser = webApp.initDataUnsafe.user;
+            currentUser = {
+                id: tgUser.id,
+                name: `${tgUser.first_name} ${tgUser.last_name || ''}`,
+                phone: '', // Можно запросить через Telegram
+                address: '' // Можно запросить через Telegram
+            };
+        }
+
+        // Расширяем на весь экран
+        webApp.expand();
+    }
+}
+
+// Вызываем при загрузке
+document.addEventListener('DOMContentLoaded', initTelegramWebApp);
     // Функции для работы с профилем
     async function loadUserData() {
         try {
@@ -290,3 +496,4 @@
         opacity: 1;
     }
 </style>
+
