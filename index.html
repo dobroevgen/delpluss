@@ -495,7 +495,7 @@
             `;
 
             try {
-                const response = await fetch('http://localhost:8000/api/restaurants');
+                const response = await fetch('/api/restaurants');
                 if (!response.ok) throw new Error('Ошибка загрузки ресторанов');
                 
                 const restaurants = await response.json();
